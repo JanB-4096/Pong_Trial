@@ -1,0 +1,3 @@
+[submodule "src/NNTools"]
+	path = src/NNTools
+	url = https://github.com/JanB-4096/NNTools
