@@ -30,4 +30,6 @@ change_bar_vertical = 5 # pixel
 bar_p1_center_x = startpoint_bar_p1[0] + bar_width/2
 bar_p2_center_x = startpoint_bar_p2[0] + bar_width/2
 
-difficulties = ['easy', 'medium', 'hard', 'very_hard']
+nn_player_file = 'src\\nn_player\\nn_player'
+ne_file = 'src\\nn_player\\ne_overview'
+difficulties = ['easy', 'medium', 'hard', 'very_hard', 'AI']

@@ -8,6 +8,8 @@ from src import GameConfig
 import time
 import numpy as np
 from src.NPCControl import NPCControl
+import src.NNTools as NNTools
+import pickle
 
 
 pygame.init()
@@ -49,7 +51,7 @@ def check_boundaries_ball(position, velocity):
         result = 2
     return position, velocity, result
 
-def check_hit(position, velocity, position_p1, position_p2, hit_count):
+def check_hit(position, velocity, position_p1, position_p2, hit_count_p1, hit_count_p2):
     # check x position for player 1, either ball in first 3 pixel of the bar or 
     if (GameConfig.bar_p1_center_x <= position[0] and \
         GameConfig.bar_p1_center_x >= position[0] + velocity[0]):
@@ -57,8 +59,8 @@ def check_hit(position, velocity, position_p1, position_p2, hit_count):
         # check y position
         if position[1] + GameConfig.ball_radius >= position_p1 and\
             position[1] - GameConfig.ball_radius <= position_p1 + GameConfig.bar_hight:
-            hit_count += 1
-            if hit_count % 5 == 0:
+            hit_count_p1 += 1
+            if (hit_count_p1 + hit_count_p2) % 5 == 0:
                 velocity[0] = -1*velocity[0] + GameConfig.acceleration_ball[1]
                 position[0] = GameConfig.bar_p1_center_x + GameConfig.bar_width/2 + GameConfig.ball_radius
             else:
@@ -78,8 +80,8 @@ def check_hit(position, velocity, position_p1, position_p2, hit_count):
         # check y position
         if position[1] + GameConfig.ball_radius >= position_p2 and\
             position[1] - GameConfig.ball_radius <= position_p2 + GameConfig.bar_hight:
-            hit_count += 1
-            if hit_count % 5 == 0:
+            hit_count_p2 += 1
+            if (hit_count_p1 + hit_count_p2) % 5 == 0:
                 velocity[0] = -1*velocity[0] - GameConfig.acceleration_ball[1]
                 position[0] = GameConfig.bar_p2_center_x - GameConfig.bar_width/2 - GameConfig.ball_radius
             else:
@@ -92,7 +94,7 @@ def check_hit(position, velocity, position_p1, position_p2, hit_count):
             elif position[1] >= position_p2 + 2*GameConfig.bar_hight/3:
                 velocity[1] += GameConfig.acceleration_ball[1]
             
-    return position, velocity, hit_count
+    return position, velocity, hit_count_p1, hit_count_p2
 
 def text_objects(text, font, color):
     TextSurface = font.render(text, True, color)
@@ -145,7 +147,8 @@ def game_loop(training_mode = False, p1 = 'human', p2 = 'human', difficulty_p1 =
 
     # actual loop to run the game
     result = 0
-    hit_count = 0
+    hit_count_p1 = 0
+    hit_count_p2 = 0
     while result == 0:
         
         # check for inputs - even with no human player quitting should be possible
@@ -165,8 +168,8 @@ def game_loop(training_mode = False, p1 = 'human', p2 = 'human', difficulty_p1 =
         position_p2 = check_boundaries_bar(position_p2)
         position_ball = np.add(position_ball, change_position_ball)
         position_ball, change_position_ball, result = check_boundaries_ball(position_ball, change_position_ball)
-        position_ball, change_position_ball, hit_count = \
-            check_hit(position_ball, change_position_ball, position_p1, position_p2, hit_count)
+        position_ball, change_position_ball, hit_count_p1, hit_count_p2 = \
+            check_hit(position_ball, change_position_ball, position_p1, position_p2, hit_count_p1, hit_count_p2)
                 
         # update game screen
         GameDisplay.fill(GameConfig.color_black)
@@ -204,4 +207,82 @@ def game_loop(training_mode = False, p1 = 'human', p2 = 'human', difficulty_p1 =
                 elif event.type == pygame.QUIT:
                         pygame.quit()
                         quit()            
+                        
+                        
+def training_loop(p1 = 'NPC', p2 = 'NPC', difficulty_p1 = 'AI', difficulty_p2 = 'very_hard'):
+    try:
+        #initialize neuro evolution
+        ne = NNTools.NeuroEvolution(20, [5, 20, 25, 10, 2], 'sigmoid')
+        species_id = 0
         
+        # initialise player controls
+        npc = NPCControl(p1, p2, difficulty_p1, difficulty_p2)
+        
+        while True:
+            species = ne.population[species_id]
+        
+            # initialise game field
+            position_p1, position_p2, position_ball, change_position_p1, change_position_p2, change_position_ball = \
+                initialise_gamefield()
+                
+            # actual loop to run the game
+            result = 0
+            hit_count_p1 = 0
+            hit_count_p2 = 0
+            while result == 0:
+                
+                # check for inputs - even with no human player quitting should be possible
+                change_position_p1, change_position_p2 = \
+                    npc.translate_keyboard(pygame.event.get(), change_position_p1, change_position_p2)
+                    
+                
+                change_position_p1 = npc.calc_ai_p1(position_p1, position_ball, change_position_ball, species)
+                
+                change_position_p2 = npc.calc_linear_npc(position_p2, position_ball, change_position_ball, 'p2')
+                
+                # change the position            
+                position_p1 += change_position_p1
+                position_p1 = check_boundaries_bar(position_p1)
+                position_p2 += change_position_p2
+                position_p2 = check_boundaries_bar(position_p2)
+                position_ball = np.add(position_ball, change_position_ball)
+                position_ball, change_position_ball, result = check_boundaries_ball(position_ball, change_position_ball)
+                position_ball, change_position_ball, hit_count_p1, hit_count_p2 = \
+                    check_hit(position_ball, change_position_ball, position_p1, position_p2, hit_count_p1, hit_count_p2)
+                        
+                # update game screen
+                GameDisplay.fill(GameConfig.color_black)
+                display_instructions()
+                place_bar('p1', position_p1)
+                place_bar('p2', position_p2)
+                place_ball(position_ball)         
+                
+                pygame.display.update()
+                game_clock.tick(20000)
+                
+                # restart or end the game
+                if result != 0:
+                    ne.update_fitness(hit_count_p1, species_id)
+                    species_id += 1   
+                    
+                if species_id >= len(ne.population):
+                    species_id = 0
+                    ne.generation_overview.update({ne.generation: ne.fitness_list})
+                    print("Generation: {} with fitness: {}".format(ne.generation, ne.generation_overview[ne.generation]))
+                    ne.generation += 1    
+                    
+                    if np.any(ne.fitness_list >= 10):
+                        # save nn and ne
+                        idx_best_nn = np.where(ne.fitness_list == ne.best_fitness)
+                        with open(GameConfig.nn_player_file+'_'+str(ne.best_fitness), 'wb') as nn_dict:
+                            pickle.dump(ne.population[idx_best_nn[0][0]], nn_dict)
+                        if np.any(ne.fitness_list >= 50):
+                            with open(GameConfig.ne_file, 'wb') as ne_file:
+                                pickle.dump(ne, ne_file)
+                            quit()
+                    
+                    # mutation and crossover of the best
+                    ne.build_next_generation()
+                
+    except:
+        raise    

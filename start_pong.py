@@ -5,4 +5,5 @@ Created on 06.03.2020
 '''
 from src import GameManager
 
-GameManager.game_loop(p1 = 'NPC', p2 = 'human', difficulty_p1 = 'very_hard')
+GameManager.training_loop()
+#GameManager.game_loop(p1 = 'NPC', p2 = 'human', difficulty_p1 = 'very_hard')
