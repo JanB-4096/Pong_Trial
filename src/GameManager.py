@@ -9,7 +9,10 @@ import time
 import numpy as np
 from src.NPCControl import NPCControl
 import src.NNTools as NNTools
-import pickle
+import datetime
+
+import os
+import psutil
 
 
 pygame.init()
@@ -104,14 +107,12 @@ def display_message_center(text, font_size):
     text_font = pygame.font.Font(GameConfig.text_font, font_size)
     TextSurface, TextRectangle = text_objects(text, text_font, GameConfig.color_white)
     TextRectangle.center = ((GameConfig.display_width/2), (GameConfig.display_hight/2))
-    GameDisplay.fill(GameConfig.color_black)
     GameDisplay.blit(TextSurface, TextRectangle)
     
-def display_message_top(text, font_size):
+def display_message_top(text, font_size, offset_hight = 0):
     text_font = pygame.font.Font(GameConfig.text_font, font_size)
     TextSurface, TextRectangle = text_objects(text, text_font, GameConfig.color_white)
-    TextRectangle.center = ((GameConfig.display_width/2), font_size/2)
-    GameDisplay.fill(GameConfig.color_black)
+    TextRectangle.center = ((GameConfig.display_width/2), font_size/2 + offset_hight)
     GameDisplay.blit(TextSurface, TextRectangle)
     
 def display_instructions():
@@ -144,6 +145,8 @@ def game_loop(training_mode = False, p1 = 'human', p2 = 'human', difficulty_p1 =
         
     # initialise player controls
     npc = NPCControl(p1, p2, difficulty_p1, difficulty_p2)
+    
+    species = NNTools.load_obj_from_file(GameConfig.nn_player_file)
 
     # actual loop to run the game
     result = 0
@@ -156,7 +159,10 @@ def game_loop(training_mode = False, p1 = 'human', p2 = 'human', difficulty_p1 =
             npc.translate_keyboard(pygame.event.get(), change_position_p1, change_position_p2)
             
         if npc.settings['p1']['mode'] == 'NPC':
-            change_position_p1 = npc.calc_linear_npc(position_p1, position_ball, change_position_ball, 'p1')
+            if npc.settings['p1']['difficulty'] == 'ai':
+                change_position_p1 = npc.calc_ai_p1(position_p1, position_ball, change_position_ball, species)
+            else:
+                change_position_p1 = npc.calc_linear_npc(position_p1, position_ball, change_position_ball, 'p1')
         
         if npc.settings['p2']['mode'] == 'NPC':
             change_position_p2 = npc.calc_linear_npc(position_p2, position_ball, change_position_ball, 'p2')
@@ -210,79 +216,86 @@ def game_loop(training_mode = False, p1 = 'human', p2 = 'human', difficulty_p1 =
                         
                         
 def training_loop(p1 = 'NPC', p2 = 'NPC', difficulty_p1 = 'AI', difficulty_p2 = 'very_hard'):
-    try:
-        #initialize neuro evolution
-        ne = NNTools.NeuroEvolution(20, [5, 20, 25, 10, 2], 'sigmoid')
-        species_id = 0
-        
-        # initialise player controls
-        npc = NPCControl(p1, p2, difficulty_p1, difficulty_p2)
-        
-        while True:
-            species = ne.population[species_id]
-        
-            # initialise game field
-            position_p1, position_p2, position_ball, change_position_p1, change_position_p2, change_position_ball = \
-                initialise_gamefield()
+    #initialize neuro evolution
+    #ne = NNTools.NeuroEvolution(20, [5, 20, 25, 10, 2], ['sigmoid','sigmoid','sigmoid','softmax'])
+    ne = NNTools.NeuroEvolution(50, [5, 20, 15, 2], ['sigmoid','sigmoid','softmax'])
+    ne.fraction_mutation_activation = 1/ne.population.__len__()
+    ne.check_next_gen_fractions()
+    species_id = 0
+    threshold = 10
+    
+    # initialise player controls
+    npc = NPCControl(p1, p2, difficulty_p1, difficulty_p2)
+    
+    while True:
+        species = ne.population[species_id]
+    
+        # initialise game field
+        position_p1, position_p2, position_ball, change_position_p1, change_position_p2, change_position_ball = \
+            initialise_gamefield()
+            
+        # actual loop to run the game
+        result = 0
+        hit_count_p1 = 0
+        hit_count_p2 = 0
+        while result == 0:
+            
+            # check for inputs - even with no human player quitting should be possible
+            change_position_p1, change_position_p2 = \
+                npc.translate_keyboard(pygame.event.get(), change_position_p1, change_position_p2)
                 
-            # actual loop to run the game
-            result = 0
-            hit_count_p1 = 0
-            hit_count_p2 = 0
-            while result == 0:
-                
-                # check for inputs - even with no human player quitting should be possible
-                change_position_p1, change_position_p2 = \
-                    npc.translate_keyboard(pygame.event.get(), change_position_p1, change_position_p2)
+            
+            change_position_p1 = npc.calc_ai_p1(position_p1, position_ball, change_position_ball, species)
+            
+            change_position_p2 = npc.calc_linear_npc(position_p2, position_ball, change_position_ball, 'p2')
+            
+            # change the position            
+            position_p1 += change_position_p1
+            position_p1 = check_boundaries_bar(position_p1)
+            position_p2 += change_position_p2
+            position_p2 = check_boundaries_bar(position_p2)
+            position_ball = np.add(position_ball, change_position_ball)
+            position_ball, change_position_ball, result = check_boundaries_ball(position_ball, change_position_ball)
+            position_ball, change_position_ball, hit_count_p1, hit_count_p2 = \
+                check_hit(position_ball, change_position_ball, position_p1, position_p2, hit_count_p1, hit_count_p2)
                     
+            # update game screen
+            GameDisplay.fill(GameConfig.color_black)
+            display_instructions()
+            display_message_top('Generation: {}'.format(ne.generation), 10,15)
+            display_message_top('Fitness: {}'.format(ne.fitness_list), 10, 25)
+            place_bar('p1', position_p1)
+            place_bar('p2', position_p2)
+            place_ball(position_ball)   
+            
+            pygame.display.update()
+            game_clock.tick(20000)
+            
+            # restart or end the game
+            if result != 0:
+                if result == 1:
+                    hit_count_p1 *= 2
+                ne.update_fitness(hit_count_p1, species_id)
+                species_id += 1   
                 
-                change_position_p1 = npc.calc_ai_p1(position_p1, position_ball, change_position_ball, species)
+            if species_id >= len(ne.population):
+                species_id = 0
+                ne.generation_overview.update({ne.generation: ne.fitness_list})
+                print("Generation: {} with fitness: {}".format(ne.generation, ne.generation_overview[ne.generation]))
+                ne.generation += 1    
                 
-                change_position_p2 = npc.calc_linear_npc(position_p2, position_ball, change_position_ball, 'p2')
-                
-                # change the position            
-                position_p1 += change_position_p1
-                position_p1 = check_boundaries_bar(position_p1)
-                position_p2 += change_position_p2
-                position_p2 = check_boundaries_bar(position_p2)
-                position_ball = np.add(position_ball, change_position_ball)
-                position_ball, change_position_ball, result = check_boundaries_ball(position_ball, change_position_ball)
-                position_ball, change_position_ball, hit_count_p1, hit_count_p2 = \
-                    check_hit(position_ball, change_position_ball, position_p1, position_p2, hit_count_p1, hit_count_p2)
+                if np.any(ne.fitness_list >= threshold):
+                    # save nn and ne
+                    threshold = ne.best_fitness + 3
+                    idx_best_nn = np.where(ne.fitness_list == ne.best_fitness)
+                    NNTools.save_obj_to_file(ne.population[idx_best_nn[0][0]], GameConfig.nn_player_file+'_'+str(ne.best_fitness)+'_'+str(datetime.date.today()))
+                    if np.any(ne.fitness_list >= 50):
+                        NNTools.save_obj_to_file(ne, GameConfig.ne_file+'_'+str(ne.best_fitness)+'_'+str(datetime.date.today()))
+                        quit()
                         
-                # update game screen
-                GameDisplay.fill(GameConfig.color_black)
-                display_instructions()
-                place_bar('p1', position_p1)
-                place_bar('p2', position_p2)
-                place_ball(position_ball)         
+                process = psutil.Process(os.getpid())
+                print(process.memory_percent())
                 
-                pygame.display.update()
-                game_clock.tick(20000)
-                
-                # restart or end the game
-                if result != 0:
-                    ne.update_fitness(hit_count_p1, species_id)
-                    species_id += 1   
-                    
-                if species_id >= len(ne.population):
-                    species_id = 0
-                    ne.generation_overview.update({ne.generation: ne.fitness_list})
-                    print("Generation: {} with fitness: {}".format(ne.generation, ne.generation_overview[ne.generation]))
-                    ne.generation += 1    
-                    
-                    if np.any(ne.fitness_list >= 10):
-                        # save nn and ne
-                        idx_best_nn = np.where(ne.fitness_list == ne.best_fitness)
-                        with open(GameConfig.nn_player_file+'_'+str(ne.best_fitness), 'wb') as nn_dict:
-                            pickle.dump(ne.population[idx_best_nn[0][0]], nn_dict)
-                        if np.any(ne.fitness_list >= 50):
-                            with open(GameConfig.ne_file, 'wb') as ne_file:
-                                pickle.dump(ne, ne_file)
-                            quit()
-                    
-                    # mutation and crossover of the best
-                    ne.build_next_generation()
-                
-    except:
-        raise    
+                # mutation and crossover of the best
+                ne.build_next_generation()
+                ne.fitness_list = np.zeros(ne.population.__len__())
