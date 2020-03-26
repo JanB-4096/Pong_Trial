@@ -107,6 +107,7 @@ def display_message_center(text, font_size):
     text_font = pygame.font.Font(GameConfig.text_font, font_size)
     TextSurface, TextRectangle = text_objects(text, text_font, GameConfig.color_white)
     TextRectangle.center = ((GameConfig.display_width/2), (GameConfig.display_hight/2))
+    GameDisplay.fill(GameConfig.color_black)
     GameDisplay.blit(TextSurface, TextRectangle)
     
 def display_message_top(text, font_size, offset_hight = 0):
@@ -142,11 +143,14 @@ def game_loop(training_mode = False, p1 = 'human', p2 = 'human', difficulty_p1 =
     # initialise game field
     position_p1, position_p2, position_ball, change_position_p1, change_position_p2, change_position_ball = \
         initialise_gamefield()
-        
+     
     # initialise player controls
-    npc = NPCControl(p1, p2, difficulty_p1, difficulty_p2)
-    
-    species = NNTools.load_obj_from_file(GameConfig.nn_player_file)
+    npc = NPCControl(p1, p2, difficulty_p1, difficulty_p2) 
+        
+    if npc.settings['p1']['mode'] == 'NPC' and npc.settings['p1']['difficulty'] == 'ai':
+        species = NNTools.load_obj_from_file(GameConfig.nn_player_file)
+        if species == None:
+            npc.settings['p1']['difficulty'] = 'very_hard'
 
     # actual loop to run the game
     result = 0
@@ -245,7 +249,7 @@ def training_loop(p1 = 'NPC', p2 = 'NPC', difficulty_p1 = 'AI', difficulty_p2 = 
                 npc.translate_keyboard(pygame.event.get(), change_position_p1, change_position_p2)
                 
             
-            change_position_p1 = npc.calc_ai_p1(position_p1, position_ball, change_position_ball, species)
+            change_position_p1 = npc.calc_ai_p1(position_p1+GameConfig.bar_hight/2, position_ball, change_position_ball, species)
             
             change_position_p2 = npc.calc_linear_npc(position_p2, position_ball, change_position_ball, 'p2')
             
@@ -286,15 +290,12 @@ def training_loop(p1 = 'NPC', p2 = 'NPC', difficulty_p1 = 'AI', difficulty_p2 = 
                 
                 if np.any(ne.fitness_list >= threshold):
                     # save nn and ne
-                    threshold = ne.best_fitness + 3
+                    threshold = ne.best_fitness + 1
                     idx_best_nn = np.where(ne.fitness_list == ne.best_fitness)
                     NNTools.save_obj_to_file(ne.population[idx_best_nn[0][0]], GameConfig.nn_player_file+'_'+str(ne.best_fitness)+'_'+str(datetime.date.today()))
                     if np.any(ne.fitness_list >= 50):
                         NNTools.save_obj_to_file(ne, GameConfig.ne_file+'_'+str(ne.best_fitness)+'_'+str(datetime.date.today()))
-                        quit()
-                        
-                process = psutil.Process(os.getpid())
-                print(process.memory_percent())
+                        #quit()
                 
                 # mutation and crossover of the best
                 ne.build_next_generation()
