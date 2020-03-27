@@ -222,7 +222,7 @@ def game_loop(training_mode = False, p1 = 'human', p2 = 'human', difficulty_p1 =
 def training_loop(p1 = 'NPC', p2 = 'NPC', difficulty_p1 = 'AI', difficulty_p2 = 'very_hard'):
     #initialize neuro evolution
     #ne = NNTools.NeuroEvolution(20, [5, 20, 25, 10, 2], ['sigmoid','sigmoid','sigmoid','softmax'])
-    ne = NNTools.NeuroEvolution(50, [5, 20, 15, 2], ['sigmoid','sigmoid','softmax'])
+    ne = NNTools.NeuroEvolution(50, [5, 25, 2], ['sigmoid','softmax'])
     ne.fraction_mutation_activation = 1/ne.population.__len__()
     ne.check_next_gen_fractions()
     species_id = 0
@@ -248,7 +248,6 @@ def training_loop(p1 = 'NPC', p2 = 'NPC', difficulty_p1 = 'AI', difficulty_p2 = 
             change_position_p1, change_position_p2 = \
                 npc.translate_keyboard(pygame.event.get(), change_position_p1, change_position_p2)
                 
-            
             change_position_p1 = npc.calc_ai_p1(position_p1+GameConfig.bar_hight/2, position_ball, change_position_ball, species)
             
             change_position_p2 = npc.calc_linear_npc(position_p2, position_ball, change_position_ball, 'p2')
@@ -278,7 +277,7 @@ def training_loop(p1 = 'NPC', p2 = 'NPC', difficulty_p1 = 'AI', difficulty_p2 = 
             # restart or end the game
             if result != 0:
                 if result == 1:
-                    hit_count_p1 *= 2
+                    hit_count_p1 += 5
                 ne.update_fitness(hit_count_p1, species_id)
                 species_id += 1   
                 
@@ -295,7 +294,9 @@ def training_loop(p1 = 'NPC', p2 = 'NPC', difficulty_p1 = 'AI', difficulty_p2 = 
                     NNTools.save_obj_to_file(ne.population[idx_best_nn[0][0]], GameConfig.nn_player_file+'_'+str(ne.best_fitness)+'_'+str(datetime.date.today()))
                     if np.any(ne.fitness_list >= 50):
                         NNTools.save_obj_to_file(ne, GameConfig.ne_file+'_'+str(ne.best_fitness)+'_'+str(datetime.date.today()))
-                        #quit()
+                if ne.generation >= 50:
+                    NNTools.save_obj_to_file(ne, GameConfig.ne_file+'_'+str(ne.best_fitness)+'_'+str(datetime.date.today()))
+                    quit()
                 
                 # mutation and crossover of the best
                 ne.build_next_generation()

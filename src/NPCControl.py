@@ -95,6 +95,7 @@ class NPCControl():
         return change_position_p
     
     def calc_ai_p1(self, position_p, position_ball, change_ball, species):
+        
         output_nn = species.calculate_output_to_input([position_p, position_ball[0], position_ball[1], change_ball[0], change_ball[1]])
         if output_nn[0] > output_nn[1]: #up
             return -1*GameConfig.change_bar_vertical
