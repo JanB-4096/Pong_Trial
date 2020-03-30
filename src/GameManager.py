@@ -11,9 +11,6 @@ from src.NPCControl import NPCControl
 import src.NNTools as NNTools
 import datetime
 
-import os
-import psutil
-
 
 pygame.init()
 GameDisplay = pygame.display.set_mode(size=(GameConfig.display_width, GameConfig.display_hight))
@@ -222,7 +219,7 @@ def game_loop(training_mode = False, p1 = 'human', p2 = 'human', difficulty_p1 =
 def training_loop(p1 = 'NPC', p2 = 'NPC', difficulty_p1 = 'AI', difficulty_p2 = 'very_hard'):
     #initialize neuro evolution
     #ne = NNTools.NeuroEvolution(20, [5, 20, 25, 10, 2], ['sigmoid','sigmoid','sigmoid','softmax'])
-    ne = NNTools.NeuroEvolution(50, [5, 25, 2], ['sigmoid','softmax'])
+    ne = NNTools.NeuroEvolution(50, [5, 15, 2], ['sigmoid','softmax'])
     ne.fraction_mutation_activation = 1/ne.population.__len__()
     ne.check_next_gen_fractions()
     species_id = 0
