@@ -67,13 +67,15 @@ class NPCControl():
                     predicted_y_ball = 2*GameConfig.display_hight - predicted_y_ball
                 elif predicted_y_ball < 0:
                     predicted_y_ball *= -1
+                    
+                # TODO: remove factor 2 ... just implemented for improving enemy for neural net
                 if position_p  + GameConfig.bar_hight/5 >= predicted_y_ball:
-                    change_position_p = -1*GameConfig.change_bar_vertical
+                    change_position_p = -2*GameConfig.change_bar_vertical
                 elif position_p + 4*GameConfig.bar_hight/5 <= predicted_y_ball:
-                    change_position_p = GameConfig.change_bar_vertical
+                    change_position_p = 2*GameConfig.change_bar_vertical
             if change_ball[0] > 0 and player == 'p1' or change_ball[0] < 0 and player == 'p2': #go back to middle position if ball was hit
                 distance_to_center = GameConfig.display_hight/2 - (position_p + GameConfig.bar_hight/2)
-                change_position_p = np.sign(distance_to_center) * GameConfig.change_bar_vertical * int((np.abs(distance_to_center) > GameConfig.change_bar_vertical))
+                change_position_p = np.sign(distance_to_center) * 2*GameConfig.change_bar_vertical * int((np.abs(distance_to_center) > GameConfig.change_bar_vertical))
                 
         else: 
             timesteps_until_hit = 0

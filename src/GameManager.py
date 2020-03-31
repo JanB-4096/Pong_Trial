@@ -219,7 +219,7 @@ def game_loop(training_mode = False, p1 = 'human', p2 = 'human', difficulty_p1 =
 def training_loop(p1 = 'NPC', p2 = 'NPC', difficulty_p1 = 'AI', difficulty_p2 = 'very_hard'):
     #initialize neuro evolution
     #ne = NNTools.NeuroEvolution(20, [5, 20, 25, 10, 2], ['sigmoid','sigmoid','sigmoid','softmax'])
-    ne = NNTools.NeuroEvolution(50, [5, 15, 2], ['sigmoid','softmax'])
+    ne = NNTools.NeuroEvolution(50, [5, 25, 25, 2], ['sigmoid','softmax'])
     ne.fraction_mutation_activation = 1/ne.population.__len__()
     ne.check_next_gen_fractions()
     species_id = 0
@@ -287,11 +287,11 @@ def training_loop(p1 = 'NPC', p2 = 'NPC', difficulty_p1 = 'AI', difficulty_p2 = 
                 if np.any(ne.fitness_list >= threshold):
                     # save nn and ne
                     threshold = ne.best_fitness + 1
-                    idx_best_nn = np.where(ne.fitness_list == ne.best_fitness)
+                    idx_best_nn = np.where(ne.fitness_list == np.max(ne.fitness_list))
                     NNTools.save_obj_to_file(ne.population[idx_best_nn[0][0]], GameConfig.nn_player_file+'_'+str(ne.best_fitness)+'_'+str(datetime.date.today()))
                     if np.any(ne.fitness_list >= 50):
                         NNTools.save_obj_to_file(ne, GameConfig.ne_file+'_'+str(ne.best_fitness)+'_'+str(datetime.date.today()))
-                if ne.generation >= 50:
+                if ne.generation >= 100 or ne.best_fitness >= 100:
                     NNTools.save_obj_to_file(ne, GameConfig.ne_file+'_'+str(ne.best_fitness)+'_'+str(datetime.date.today()))
                     quit()
                 
