@@ -103,3 +103,9 @@ class NPCControl():
             return -1*GameConfig.change_bar_vertical
         else: #down
             return GameConfig.change_bar_vertical
+        
+    def calc_swarm_p1(self, position_p, position_ball, change_ball, speciesList):
+        output_nn = []
+        for species in speciesList:
+            output_nn.append(self.calc_ai_p1(position_p, position_ball, change_ball, species))
+        return GameConfig.change_bar_vertical * np.sign(np.average(output_nn))

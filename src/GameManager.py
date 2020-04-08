@@ -144,10 +144,17 @@ def game_loop(training_mode = False, p1 = 'human', p2 = 'human', difficulty_p1 =
     # initialise player controls
     npc = NPCControl(p1, p2, difficulty_p1, difficulty_p2) 
         
-    if npc.settings['p1']['mode'] == 'NPC' and npc.settings['p1']['difficulty'] == 'ai':
+    if npc.settings['p1']['mode'] == 'NPC' and npc.settings['p1']['difficulty'] == 'AI':
         species = NNTools.load_obj_from_file(GameConfig.nn_player_file)
         if species == None:
             npc.settings['p1']['difficulty'] = 'very_hard'
+    elif npc.settings['p1']['mode'] == 'NPC' and npc.settings['p1']['difficulty'] == 'swarm':
+        speciesList = []
+        for species in GameConfig.nn_player_swarm:
+            try:
+                speciesList.append(NNTools.load_obj_from_file(species))
+            except:
+                pass
 
     # actual loop to run the game
     result = 0
@@ -160,8 +167,10 @@ def game_loop(training_mode = False, p1 = 'human', p2 = 'human', difficulty_p1 =
             npc.translate_keyboard(pygame.event.get(), change_position_p1, change_position_p2)
             
         if npc.settings['p1']['mode'] == 'NPC':
-            if npc.settings['p1']['difficulty'] == 'ai':
-                change_position_p1 = npc.calc_ai_p1(position_p1, position_ball, change_position_ball, species)
+            if npc.settings['p1']['difficulty'] == 'AI':
+                change_position_p1 = npc.calc_ai_p1(position_p1+GameConfig.bar_hight/2, position_ball, change_position_ball, species)
+            elif npc.settings['p1']['difficulty'] == 'swarm':
+                change_position_p1 = npc.calc_swarm_p1(position_p1+GameConfig.bar_hight/2, position_ball, change_position_ball, speciesList)
             else:
                 change_position_p1 = npc.calc_linear_npc(position_p1, position_ball, change_position_ball, 'p1')
         
@@ -181,6 +190,7 @@ def game_loop(training_mode = False, p1 = 'human', p2 = 'human', difficulty_p1 =
         # update game screen
         GameDisplay.fill(GameConfig.color_black)
         display_instructions()
+        display_message_top('hit count: {}'.format(hit_count_p1+hit_count_p2), 10,15)
         place_bar('p1', position_p1)
         place_bar('p2', position_p2)
         place_ball(position_ball)         

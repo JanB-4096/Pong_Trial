@@ -32,4 +32,5 @@ bar_p2_center_x = startpoint_bar_p2[0] + bar_width/2
 
 nn_player_file = 'src\\nn_player\\nn_player'
 ne_file = 'src\\nn_player\\ne_overview'
-difficulties = ['easy', 'medium', 'hard', 'very_hard', 'AI']
+nn_player_swarm = ['src\\nn_player\\nn_player','src\\nn_player\\nn_player_2','src\\nn_player\\nn_player_3','src\\nn_player\\nn_player_4','src\\nn_player\\nn_player_5']
+difficulties = ['easy', 'medium', 'hard', 'very_hard', 'AI', 'swarm']
